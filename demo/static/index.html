@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HotCache — Adaptive Load-Aware Caching Engine</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <div class="app-background"></div>
+  
+  <div class="app-container">
+    <!-- Header -->
+    <header class="navbar glass">
+      <div class="logo-group">
+        <div class="logo-icon">🔥</div>
+        <div>
+          <div class="logo-title">HotCache</div>
+          <div class="logo-subtitle">Adaptive Load-Aware Caching &amp; Stampede Protection</div>
+        </div>
+      </div>
+      <div class="nav-status">
+        <div class="status-badge" id="wsStatus">
+          <span class="pulse-dot"></span>
+          <span id="wsStatusText">Connecting telemetry...</span>
+        </div>
+        <button class="btn btn-secondary btn-sm" id="resetBtn">
+          <span>🔄</span> Reset Cache &amp; Metrics
+        </button>
+      </div>
+    </header>
+
+    <!-- Key Metrics Cards Grid -->
+    <section class="metrics-grid">
+      <div class="card glass metric-card">
+        <div class="card-header">
+          <span class="card-title">Celebrity Post TTL</span>
+          <span class="badge badge-purple" id="celebrityModeBadge">Adaptive TTL</span>
+        </div>
+        <div class="metric-value-row">
+          <span class="metric-value" id="celebrityTtlVal">5<span class="metric-unit">s</span></span>
+          <span class="metric-sub" id="celebrityMultiplier">1x Base (5s)</span>
+        </div>
+        <div class="ttl-progress-track">
+          <div class="ttl-progress-bar" id="ttlProgressBar" style="width: 8%;"></div>
+        </div>
+        <div class="metric-footer">
+          <span>Base: 5s | Ceiling: 60s</span>
+          <span id="celebrityLoadVal">0 req/min</span>
+        </div>
+      </div>
+
+      <div class="card glass metric-card">
+        <div class="card-header">
+          <span class="card-title">DB Queries Prevented</span>
+          <span class="badge badge-green">Efficiency</span>
+        </div>
+        <div class="metric-value-row">
+          <span class="metric-value" id="dbSavedPercent">0<span class="metric-unit">%</span></span>
+          <span class="metric-sub" id="dbSavedRatio">0 saved</span>
+        </div>
+        <div class="metric-footer">
+          <span>Actual DB Queries: <strong id="hotcacheDbHits">0</strong></span>
+          <span>Baseline DB Hits: <strong id="baselineDbHits">0</strong></span>
+        </div>
+      </div>
+
+      <div class="card glass metric-card">
+        <div class="card-header">
+          <span class="card-title">Cache Hit Ratio</span>
+          <span class="badge badge-cyan">Performance</span>
+        </div>
+        <div class="metric-value-row">
+          <span class="metric-value" id="hitRatioVal">100<span class="metric-unit">%</span></span>
+          <span class="metric-sub" id="totalReqsVal">0 total reqs</span>
+        </div>
+        <div class="metric-footer">
+          <span>Hits: <strong id="hitsVal">0</strong></span>
+          <span>SWR Stale: <strong id="swrHitsVal">0</strong></span>
+          <span>Misses: <strong id="missesVal">0</strong></span>
+        </div>
+      </div>
+
+      <div class="card glass metric-card">
+        <div class="card-header">
+          <span class="card-title">Stampede Locks</span>
+          <span class="badge badge-amber">Lock Engine</span>
+        </div>
+        <div class="metric-value-row">
+          <span class="metric-value" id="stampedeLocksVal">0</span>
+          <span class="metric-sub">Saves: <strong id="stampedeSavesVal">0</strong></span>
+        </div>
+        <div class="metric-footer">
+          <span>Acquired: <strong id="locksAcquiredVal">0</strong></span>
+          <span>Contended: <strong id="locksContendedVal">0</strong></span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Main Content Layout -->
+    <div class="dashboard-split">
+      <!-- Left Column: Charts & Live Comparator -->
+      <div class="split-left">
+        <!-- Live Adaptation Chart -->
+        <div class="card glass chart-card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Real-Time Load vs. Adaptive TTL Scaling</div>
+              <div class="card-subtitle">Watches req/min cross threshold (20 req/min) &rarr; atomically doubles TTL (5s &rarr; 10s &rarr; 20s &rarr; 40s &rarr; 60s)</div>
+            </div>
+            <div class="chart-legend-custom">
+              <span class="legend-item"><span class="legend-dot" style="background:#818cf8;"></span> Req / Min</span>
+              <span class="legend-item"><span class="legend-dot" style="background:#f43f5e;"></span> Active TTL (sec)</span>
+            </div>
+          </div>
+          <div class="chart-container">
+            <canvas id="telemetryChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Side-by-Side Comparator: Baseline vs HotCache -->
+        <div class="card glass comparator-card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Side-by-Side Viral Spike Survival</div>
+              <div class="card-subtitle">Comparing Static 5s TTL (No Lock) vs HotCache (Adaptive + Stampede Lock + SWR)</div>
+            </div>
+          </div>
+          <div class="comparator-grid">
+            <div class="comparator-column baseline-col">
+              <div class="col-title">Static 5s TTL (Baseline)</div>
+              <div class="comp-metric">
+                <span class="comp-label">DB Queries on Viral Spike</span>
+                <span class="comp-val text-red" id="compBaselineDb">0</span>
+              </div>
+              <div class="comp-metric">
+                <span class="comp-label">Stampede Expiry Behavior</span>
+                <span class="comp-status text-red">💥 All concurrent requests hit DB</span>
+              </div>
+              <div class="comp-metric">
+                <span class="comp-label">p99 Spike Latency</span>
+                <span class="comp-val text-red">~180ms - 350ms</span>
+              </div>
+            </div>
+
+            <div class="comparator-column hotcache-col">
+              <div class="col-title">HotCache (Adaptive + SWR)</div>
+              <div class="comp-metric">
+                <span class="comp-label">DB Queries on Viral Spike</span>
+                <span class="comp-val text-green" id="compHotcacheDb">0</span>
+              </div>
+              <div class="comp-metric">
+                <span class="comp-label">Stampede Expiry Behavior</span>
+                <span class="comp-status text-green">🛡️ 1 Lock Winner, 99 served via SWR</span>
+              </div>
+              <div class="comp-metric">
+                <span class="comp-label">p99 Spike Latency</span>
+                <span class="comp-val text-green">&lt; 4ms</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Traffic Controller & Social Feed -->
+      <div class="split-right">
+        <!-- Traffic Generator Control Panel -->
+        <div class="card glass traffic-card">
+          <div class="card-header">
+            <div>
+              <div class="card-title">Bot Traffic Generator</div>
+              <div class="card-subtitle">Inject synthetic traffic patterns into the FastAPI backend</div>
+            </div>
+            <div class="traffic-status-pill" id="trafficStatePill">IDLE</div>
+          </div>
+
+          <div class="traffic-buttons-grid">
+            <button class="btn btn-primary traffic-btn" id="btnViralSpike">
+              <span class="btn-icon">⚡</span>
+              <div class="btn-text">
+                <strong>Simulate Viral Spike</strong>
+                <small>150 reqs @ 30 req/s &rarr; triggers TTL doubling</small>
+              </div>
+            </button>
+
+            <button class="btn btn-accent traffic-btn" id="btnStampede">
+              <span class="btn-icon">💥</span>
+              <div class="btn-text">
+                <strong>Simulate Cache Stampede</strong>
+                <small>50 concurrent requests at exact expiry</small>
+              </div>
+            </button>
+
+            <button class="btn btn-neutral traffic-btn" id="btnCooldown">
+              <span class="btn-icon">❄️</span>
+              <div class="btn-text">
+                <strong>Simulate Cooldown</strong>
+                <small>Low traffic &rarr; triggers decay window</small>
+              </div>
+            </button>
+
+            <button class="btn btn-neutral traffic-btn" id="btnSteady">
+              <span class="btn-icon">🔄</span>
+              <div class="btn-text">
+                <strong>Steady Moderate Load</strong>
+                <small>Continuous 5 req/s</small>
+              </div>
+            </button>
+          </div>
+
+          <div class="stop-traffic-row">
+            <button class="btn btn-danger btn-sm" id="btnStopTraffic">⏹️ Stop Generator</button>
+          </div>
+        </div>
+
+        <!-- Simulated Social Feed & Order Status -->
+        <div class="card glass feed-card">
+          <div class="card-header">
+            <div class="card-title">Simulated Social Media Feed</div>
+            <button class="btn btn-secondary btn-xs" id="btnManualFetch">Fetch Latest</button>
+          </div>
+          
+          <div class="social-feed">
+            <!-- Celebrity Post -->
+            <div class="post-item celebrity-post-border">
+              <div class="post-header">
+                <div class="post-author-group">
+                  <span class="post-avatar">🌟</span>
+                  <div>
+                    <div class="post-author">Taylor Nova 🌟 <span class="badge badge-purple">Adaptive TTL</span></div>
+                    <div class="post-route"><code>GET /posts/celebrity-post</code></div>
+                  </div>
+                </div>
+                <div class="post-ttl-badge" id="post1TtlBadge">TTL: 5s</div>
+              </div>
+              <div class="post-content">
+                Just announced our world tour stadium dates! 🚀 Tickets go live in 10 minutes!
+              </div>
+              <div class="post-stats">
+                <span>❤️ 1.42M</span>
+                <span>🔁 89.2K</span>
+                <span class="latency-pill" id="post1Latency">Latency: 2ms</span>
+              </div>
+            </div>
+
+            <!-- Normal Post -->
+            <div class="post-item">
+              <div class="post-header">
+                <div class="post-author-group">
+                  <span class="post-avatar">💻</span>
+                  <div>
+                    <div class="post-author">Alex Dev <span class="badge badge-gray">Static TTL (10s)</span></div>
+                    <div class="post-route"><code>GET /posts/post-1</code></div>
+                  </div>
+                </div>
+                <div class="post-ttl-badge" id="post2TtlBadge">TTL: 10s</div>
+              </div>
+              <div class="post-content">
+                Testing out async Redis Lua scripts today for cache stampede protection. Incredible results!
+              </div>
+              <div class="post-stats">
+                <span>❤️ 42</span>
+                <span>🔁 3</span>
+                <span class="latency-pill" id="post2Latency">Latency: 1ms</span>
+              </div>
+            </div>
+
+            <!-- Strict Freshness Order -->
+            <div class="post-item strict-order-border">
+              <div class="post-header">
+                <div class="post-author-group">
+                  <span class="post-avatar">📦</span>
+                  <div>
+                    <div class="post-author">Order #9021 <span class="badge badge-amber">Strict Freshness</span></div>
+                    <div class="post-route"><code>GET /orders/9021/status</code></div>
+                  </div>
+                </div>
+                <div class="post-ttl-badge">Strict: 3s</div>
+              </div>
+              <div class="post-content">
+                Status: <strong class="text-green">PROCESSING</strong> (Never extended past 3s)
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Real-Time Event Log Stream -->
+        <div class="card glass log-card">
+          <div class="card-header">
+            <div class="card-title">Live Engine Event Stream</div>
+            <span class="pulse-dot"></span>
+          </div>
+          <div class="log-container" id="eventLogContainer">
+            <div class="log-entry log-info">System initialized. Listening for cache events...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

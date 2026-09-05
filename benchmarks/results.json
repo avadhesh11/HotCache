@@ -1,0 +1,49 @@
+{
+  "benchmark_date": "2026-09-06 00:13:12",
+  "traffic_pattern": {
+    "total_requests": 600,
+    "concurrency": 40,
+    "endpoint": "/posts/celebrity-post"
+  },
+  "baseline": {
+    "endpoint": "/baseline/posts/celebrity-post",
+    "total_requests": 600,
+    "concurrency": 40,
+    "duration_sec": 0.818,
+    "throughput_rps": 733.9,
+    "db_queries": 40,
+    "cold_db_hits": 40,
+    "p50_ms": 0.76,
+    "p90_ms": 1.35,
+    "p95_ms": 302.33,
+    "p99_ms": 342.92,
+    "avg_ms": 21.95,
+    "success_rate": 100.0
+  },
+  "hotcache": {
+    "endpoint": "/posts/celebrity-post",
+    "total_requests": 600,
+    "concurrency": 40,
+    "duration_sec": 1.119,
+    "throughput_rps": 536.2,
+    "db_queries": 1,
+    "cold_db_hits": 32,
+    "p50_ms": 1.54,
+    "p90_ms": 2.38,
+    "p95_ms": 144.29,
+    "p99_ms": 231.96,
+    "avg_ms": 13.87,
+    "success_rate": 100.0
+  },
+  "stampede_test": {
+    "concurrency": 50,
+    "baseline_db_queries_on_expiry": 50,
+    "hotcache_db_queries_on_expiry": 1,
+    "stampede_reduction_factor": "50x &rarr; 1x"
+  },
+  "improvements": {
+    "db_query_reduction_percent": 97.5,
+    "p99_latency_reduction_percent": 32.36,
+    "p50_latency_reduction_percent": -102.63
+  }
+}
