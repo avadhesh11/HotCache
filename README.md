@@ -142,11 +142,4 @@ python benchmarks/run_benchmarks.py
 
 ---
 
-## 💼 Resume & Portfolio Summary
 
-> *"Designed and engineered HotCache, an adaptive load-aware caching middleware for FastAPI built on atomic Redis Lua scripts. Implemented dynamic TTL scaling under viral traffic, distributed stampede protection via SETNX locks, and Stale-While-Revalidate (SWR) fallback. Empirically benchmarked under high concurrency (600 requests at 40 concurrency), achieving a 97.5% database query reduction and reducing p95 tail latency by 52.3% during traffic spikes. Built a real-time WebSocket telemetry dashboard for live demonstration."*
-
----
-
-## 📄 License
-MIT © Avadhesh Nagar
